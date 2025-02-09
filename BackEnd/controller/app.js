@@ -9,6 +9,7 @@ var offers = require('../model/offer');
 var likes = require('../model/likes');
 var images = require('../model/images')
 var verifyToken = require('../auth/verifyToken.js');
+var bcryptMiddleWare = require('../middleware/bcryptMiddleware.js')
 
 var path = require("path");
 var multer = require('multer')
@@ -27,6 +28,8 @@ app.post('/user/login', function (req, res) {//Login
 	var email = req.body.email;
 	var password = req.body.password;
 
+	user.getPassword
+
 	user.loginUser(email, password, function (err, token, result) {
 		if (err) {
 			res.status(500);
@@ -40,14 +43,17 @@ app.post('/user/login', function (req, res) {//Login
 	});
 });
 
-app.post('/user', function (req, res) {//Create User
+
+app.post('/user', bcryptMiddleWare.hashPassword, function (req, res) {//Create User
 	var username = req.body.username;
 	var email = req.body.email;
+	// here, the password will be the hashed password
 	var password = req.body.password;
-	var profile_pic_url = req.body.profile_pic_url
-	var role = req.body.role
+	var firstname = req.body.firstname;
+	var lastname = req.body.lastname;
 
-	user.addUser(username, email, password, profile_pic_url, role, function (err, result) {
+	// hashed password is stored in the database
+	user.addUser(username, email, password, firstname, lastname, function (err, result) {
 		if (err) {
 			res.status(500);
 			res.send(err);
