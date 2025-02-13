@@ -48,18 +48,15 @@ var listingDB = {
 
         })
     },
-    getListing: function (id, userId, callback) {
+    getListing: function (id, callback) {
         var conn = db.getConnection();
         conn.connect(function (err) {
             if (err) {
                 console.log(err);
                 return callback(err, null);
             } else {
-                var sql = "SELECT l.title, l.category, l.description, l.price, u.username, l.fk_poster_id, "
-                "i.name FROM listing l JOIN users ON l.fk_poster_id = u.id "
-                + " images i ON l.id = i.fk_product_id "
-                +" WHERE l.id = ? AND fk_poster_id = ?";
-                conn.query(sql, [id, userId], function (err, result) {
+                var sql = "select l.title,l.category,l.description,l.price,u.username,l.fk_poster_id,i.name from listings l,users u,images i where l.id = ? and l.id = i.fk_product_id and l.fk_poster_id = u.id";
+                conn.query(sql, [id], function (err, result) {
                     conn.end()
                     if (err) {
                         console.log(err);
@@ -125,8 +122,8 @@ var listingDB = {
                 console.log(err);
                 return callback(err, null);
             } else {
-                var sql = `delete from listings where id=${id}`;
-                conn.query(sql, [], function (err, result) {
+                var sql = `delete from listings where id=?`;
+                conn.query(sql, [id], function (err, result) {
                     conn.end()
                     if (err) {
                         console.log(err);
