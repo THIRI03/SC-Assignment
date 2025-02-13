@@ -113,6 +113,7 @@ app.post('/listing/', verifyToken, function (req, res) {//Add Listing
 
 app.get('/user/listing', verifyToken, function (req, res) {//Get all Listings of the User
 	var userid = req.id;
+	console.log("here listing")
 	listing.getUserListings(userid, function (err, result) {
 		if (err) {
 			res.status(500);
@@ -126,9 +127,11 @@ app.get('/user/listing', verifyToken, function (req, res) {//Get all Listings of
 	});
 });
 
-app.get('/listing/:id', function (req, res) {//View a listing
+app.get('/listing/:id', verifyToken, function (req, res) {//View a listing
 	var id = req.params.id
-	listing.getListing(id, function (err, result) {
+	var userId = req.id;
+	console.log("here id")
+	listing.getListing(id, userId, function (err, result) {
 		if (err) {
 			res.status(500);
 			res.json({ success: false })

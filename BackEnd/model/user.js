@@ -5,59 +5,43 @@ var bcrypt = require('bcryptjs');
 var userDB = {
 
 	loginUser: function (email, password, callback) {
+
 		var conn = db.getConnection();
-	
+
 		conn.connect(function (err) {
 			if (err) {
 				console.log(err);
 				return callback(err, null);
-			} else {
+			}
+			else {
 				console.log("Connected!");
-	
-				// First, retrieve the stored hashed password for the user
-				var sql = 'select id, password from users where email = ?';
-				conn.query(sql, [email], function (err, result) {
+
+				var sql = 'select * from users where email = ? and password=?';
+				conn.query(sql, [email, password], function (err, result) {
 					conn.end();
-	
+
 					if (err) {
 						console.log("Err: " + err);
 						return callback(err, null, null);
+
 					} else {
+						var token = "";
+
 						if (result.length == 1) {
-							// Compare the entered password with the hashed password
-							bcrypt.compare(password, result[0].password, function (err, isMatch) {
-								if (err) {
-									console.log("Error comparing passwords: ", err);
-									return callback(err, null, null);
-								}
-	
-								if (isMatch) {
-									// Passwords match, generate token
-									const token = jwt.sign({ id: result[0].id }, config.key, {
-										expiresIn: 86400 // expires in 24 hrs
-									});
-									console.log("@@token " + token);
-	
-									// Remove password from result before sending to client
-									delete result[0].password;
-	
-									return callback(null, token, result);
-								} else {
-									// Password does not match
-									console.log("Email/Password does not match");
-									var err2 = new Error("Email/Password does not match.");
-									err2.statusCode = 404;
-									return callback(err2, null, null);
-								}
+							token = jwt.sign({ id: result[0].id }, config.key, {
+								expiresIn: 86400 //expires in 24 hrs
 							});
-						} else {
-							// No user found
-							console.log("Email not found.");
-							var err2 = new Error("Email not found.");
+							console.log("@@token " + token);
+							return callback(null, token, result);
+						} //if(res)
+						else {
+							console.log("email/password does not match");
+							var err2 = new Error("Email/Password does not match.");
 							err2.statusCode = 404;
+							console.log(err2);
 							return callback(err2, null, null);
 						}
-					}
+					}  //else
 				});
 			}
 		});

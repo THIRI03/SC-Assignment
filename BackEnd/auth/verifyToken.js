@@ -19,6 +19,7 @@ function verifyToken(req, res, next){
             return res.end({auth:false, message:'Not authorized!'});
         }else{
             req.id = decoded.id
+            console.log(req.id + "verify")
             next();
         }
        });
