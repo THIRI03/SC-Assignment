@@ -1,5 +1,3 @@
-
-
 var express = require('express');
 var bodyParser = require('body-parser');
 var app = express();
@@ -17,6 +15,62 @@ var cors = require('cors');//Just use(security feature)
 
 var urlencodedParser = bodyParser.urlencoded({ extended: false });
 
+// Installing morgan fs and rotating-file-stream
+var morgan = require('morgan');
+var fs = require('fs');
+var rfs = require('rotating-file-stream');
+
+// Creating a write stream for logging to a file
+const logDirectory = path.join(__dirname, '../log');
+if (!fs.existsSync(logDirectory)) {
+    fs.mkdirSync(logDirectory); // Ensuring that the log directory exists
+}
+
+// Creating a write stream for logging to a file
+const accessLogStream = rfs.createStream('log.txt', {
+    interval: '12h',
+    path: logDirectory,
+});
+accessLogStream.on('error', (err) => {
+    console.error('Error in rotating-file-stream:', err);
+});
+
+// Custom tokens for logging
+morgan.token('method', function (req) {
+    return req.method;
+});
+morgan.token('url', function (req) {
+    return req.originalUrl;
+});
+morgan.token('status', function (req, res) {
+    return res.statusCode;
+});
+morgan.token('ip', function (req) {
+    return req.ip;
+});
+morgan.token('date', function () {
+    return new Date().toUTCString();
+});
+// Error exceptions will be extracted
+morgan.token('exception', function (req, res) {
+    return res.locals.exception || '-';
+});
+
+// Custom JSON log format
+morgan.format('json', function (tokens, req, res) {
+    return JSON.stringify({
+        method: tokens.method(req),
+        url: tokens.url(req),
+        status: tokens.status(req, res),
+        ip: tokens.ip(req),
+        date: tokens.date(),
+		error: tokens.exception(req, res),
+    });
+})
+
+// Use customized morgan format
+app.use(morgan('json', ({ stream: accessLogStream })));
+
 app.options('*', cors());//Just use
 app.use(cors());//Just use
 app.use(bodyParser.json());
@@ -30,6 +84,7 @@ app.post('/user/login', function (req, res) {//Login
 	user.loginUser(email, password, function (err, token, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`;
 			res.send(err.statusCode);
 		} else {
 			res.statusCode = 201;
@@ -50,6 +105,7 @@ app.post('/user', function (req, res) {//Create User
 	user.addUser(username, email, password, profile_pic_url, role, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`;
 			res.send(err);
 		} else {
 			res.status(201);
@@ -64,9 +120,7 @@ app.post('/user/logout', function (req, res) {//Logout
 	res.clearCookie('session-id'); //clears the cookie in the response
 	res.setHeader('Content-Type', 'application/json');
 	res.json({ success: true, status: 'Log out successful!' });
-
 });
-
 
 app.put('/user/update/', verifyToken, function (req, res) {//Update user info
 	var id = req.id
@@ -76,6 +130,7 @@ app.put('/user/update/', verifyToken, function (req, res) {//Update user info
 	user.updateUser(username, firstname, lastname, id, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(200);
@@ -95,6 +150,7 @@ app.post('/listing/', verifyToken, function (req, res) {//Add Listing
 	listing.addListing(title, category, description, price, fk_poster_id, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false });
 		} else {
 			res.status(201);
@@ -110,7 +166,7 @@ app.get('/user/listing', verifyToken, function (req, res) {//Get all Listings of
 	listing.getUserListings(userid, function (err, result) {
 		if (err) {
 			res.status(500);
-			console.log(err)
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false });
 		} else {
 			res.status(200);
@@ -121,10 +177,11 @@ app.get('/user/listing', verifyToken, function (req, res) {//Get all Listings of
 });
 
 app.get('/listing/:id', function (req, res) {//View a listing
-	var id = req.params.id
+	var id = req.params.id;
 	listing.getListing(id, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(200);
@@ -140,6 +197,7 @@ app.get('/search/:query', verifyToken, function (req, res) {//View all other use
 	listing.getOtherUsersListings(query, userid, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(200);
@@ -158,6 +216,7 @@ app.put('/listing/update/', function (req, res) {//View a listing
 	listing.updateListing(title, category, description, price, id, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(200);
@@ -173,6 +232,7 @@ app.delete('/listing/delete/', function (req, res) {//View a listing
 	listing.deleteListing(id, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(200);
@@ -191,6 +251,7 @@ app.post('/offer/', verifyToken, function (req, res) {//View a listing
 	offers.addOffer(offer, fk_listing_id, fk_offeror_id, status, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(201);
@@ -205,11 +266,13 @@ app.get('/offer/', verifyToken, function (req, res) {//View all offers
 	offers.getOffers(userid, function (err, result) {
 		if (err) {
 			res.status(500);
+			// Error messages will be stored in order to log
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(201);
 			res.setHeader('Content-Type', 'application/json');
-			console.log(result)
+			// console.log of results is deleted to reduce exposure of user data
 			res.json({ success: true, result: result })
 		}
 	});
@@ -221,6 +284,7 @@ app.post('/offer/decision/', function (req, res) {//View all offers
 	offers.AcceptOrRejectOffer(status, offerid, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(201);
@@ -235,6 +299,7 @@ app.get('/offer/status/', verifyToken, function (req, res) {//View all offers
 	offers.getOfferStatus(userid, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(201);
@@ -251,6 +316,7 @@ app.post('/likes/', verifyToken, function (req, res) {//View all offers
 	likes.insertLike(userid, listingid, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(201);
@@ -273,6 +339,7 @@ app.get('/likeorunlike/:listingid/', verifyToken, function (req, res) {//Like or
 				likes.insertLike(userid, listingid, function (err, result) {
 					if (err) {
 						res.status(500);
+						res.locals.exception = `Error: ${err.code}: ${err.message}`
 						res.json({ success: false })
 					} else {
 						res.status(201);
@@ -284,6 +351,7 @@ app.get('/likeorunlike/:listingid/', verifyToken, function (req, res) {//Like or
 				likes.deleteLike(userid, listingid, function (err, result) {
 					if (err) {
 						res.status(500);
+						res.locals.exception = `Error: ${err.code}: ${err.message}`
 						res.json({ success: false })
 					} else {
 						res.status(200);
@@ -300,6 +368,7 @@ app.get('/likes/:listingid/', function (req, res) {//View all offers
 	likes.getLike(listingid, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({ success: false })
 		} else {
 			res.status(200);
@@ -334,6 +403,7 @@ app.post('/images/:fk_product_id/', upload.single('myfile'), function (req, res)
 	images.uploadImage(name,fk_product_id, function (err, result) {
 		if (err) {
 			res.status(500);
+			res.locals.exception = `Error: ${err.code}: ${err.message}`
 			res.json({success:false});
 		} else {
 			res.status(201);
